@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" id="themeColorMeta" content="#000000">
+<title>Команды чекера</title>
+<meta name="description" content="Инструкция по командам бота-чекера боссов и шахт">
+<meta name="robots" content="noindex, nofollow, noarchive">
+
+<style>
+@font-face{
+  font-family:'Minecraft';
+  src:url('./fonts/minecraft.woff2') format('woff2');
+  font-weight:400;
+  font-style:normal;
+  font-display:block;
+}
+
+/* Inter вариативный, latin/cyrillic отдельными файлами */
+@font-face{
+  font-family:'Inter';
+  font-style:normal;
+  font-weight:100 900;
+  font-display:block;
+  src:url('./fonts/inter-latin.woff2') format('woff2-variations');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face{
+  font-family:'Inter';
+  font-style:normal;
+  font-weight:100 900;
+  font-display:block;
+  src:url('./fonts/inter-cyrillic.woff2') format('woff2-variations');
+  unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+:root{
+  --bg:         #ffffff;
+  --card-bg:    #fafafa;
+  --line:       #dddddd;
+  --panel:      #fafafa;
+  --panel-line: #dddddd;
+
+  /* 16 стандартных цветов форматирования Minecraft */
+  --mc-0:#000000; --mc-1:#0000AA; --mc-2:#00AA00; --mc-3:#00AAAA;
+  --mc-4:#AA0000; --mc-5:#AA00AA; --mc-6:#FFAA00; --mc-7:#AAAAAA;
+  --mc-8:#555555; --mc-9:#5555FF; --mc-a:#55FF55; --mc-b:#55FFFF;
+  --mc-c:#FF5555; --mc-d:#FF55FF; --mc-f:#000000; /* белый -> чёрный на светлом фоне */
+  --mc-e:#E8E848; /* настоящий #FFFF55 слишком светлый на белом */
+
+  /* нестандартные &x-цвета конкретных боссов и ника Sdekill */
+  --boss-lich-1:#FE7F50; --boss-lich-2:#BD749F; --boss-lich-3:#7B68ED;
+  --boss-lich-gen-2:#D27784; --boss-lich-gen-3:#A770B9;
+  --boss-golem:#A25F2A;
+  --boss-pozhiratel:#2A0A5F;
+  --sdekill-1:#80DBFE; --sdekill-2:#AAD0D1; --sdekill-3:#D4C6A4; --sdekill-4:#FEBC79;
+  --sdekill-5:#FEA691; --sdekill-6:#FE90A9; --sdekill-7:#FE7CC2;
+
+  --ink:       var(--mc-0);
+  --ink-soft:  var(--mc-8);
+  --ink-faint: var(--mc-7);
+
+  --radius:12px;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;
+  --mono:'Minecraft','Courier New',monospace;
+  /* у пиксельного шрифта пробел слишком узкий – раздвигаем словами */
+  --mono-word-spacing: 0.35em;
+  --theme-transition: .2s ease;
+  /* фактическая высота липкой панели, пересчитывается в JS */
+  --sticky-h: 0px;
+}
+
+[data-theme="dark"]{
+  --bg:         #000000;
+  --card-bg:    #0e0e0e;
+  --line:       #2f2f2f;
+  --panel:      #0e0e0e;
+  --panel-line: #2f2f2f;
+
+  --mc-f:#FFFFFF;
+  --mc-e:#FFFF55;
+  
+  --boss-pozhiratel:#3D0F8C;
+
+  --ink:       var(--mc-f);
+  --ink-soft:  var(--mc-7);
+  --ink-faint: var(--mc-8);
+}
+
+*,*::before,*::after{box-sizing:border-box;transition:background-color var(--theme-transition), color var(--theme-transition), border-color var(--theme-transition);}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  opacity:0;
+  transition:opacity .2s ease, background-color var(--theme-transition), color var(--theme-transition);
+}
+/* Добавляется после загрузки шрифтов, чтобы убрать "мигание" */
+html.fonts-loaded body{
+  opacity:1;
+}
+a{color:var(--ink);}
+
+.theme-toggle{
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  background:var(--card-bg);
+  border:1px solid var(--panel-line);
+  border-radius:var(--radius);
+  padding:6px 6px;
+  font-family:var(--sans);
+  font-size:14px;
+  color:var(--ink-soft);
+  cursor:pointer;
+  white-space:nowrap;
+}
+.theme-toggle:hover{color:var(--ink);border-color:var(--ink-faint);}
+
+/* Липкая панель: фон "стеклянный" через слои backdrop-blur */
+.sticky-bar{
+  position:sticky;
+  top:0;
+  z-index:20;
+  background:transparent;
+  border-bottom:1px solid var(--line);
+}
+.sticky-bar::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background:var(--bg);
+  opacity:.33;
+}
+.glass-blur{
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  overflow:hidden;
+  pointer-events:none;
+}
+.sticky-bar > *:not(.glass-blur){
+  position:relative;
+  z-index:1;
+}
+.glass-blur i{
+  position:absolute;
+  inset:0;
+  display:block;
+  font-style:normal;
+  will-change:backdrop-filter;
+  -webkit-backdrop-filter:blur(var(--gb-blur));
+  backdrop-filter:blur(var(--gb-blur));
+  -webkit-mask-image:linear-gradient(to bottom,
+    transparent var(--gb-0), #000 var(--gb-1), #000 var(--gb-2), transparent var(--gb-3));
+  mask-image:linear-gradient(to bottom,
+    transparent var(--gb-0), #000 var(--gb-1), #000 var(--gb-2), transparent var(--gb-3));
+}
+.sticky-bar-inner{
+  max-width:900px;
+  margin:0 auto;
+  padding:12px 24px 0;
+  display:flex;
+  align-items:center;
+  background:var(--bg);
+  justify-content:space-between;
+  gap:12px;
+}
+.caption-row{
+  display:flex;
+  align-items:baseline;
+  min-width:0;
+}
+.caption{
+  font-family:var(--sans);
+  font-weight:600;
+  font-size:18px;
+  color:var(--ink);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.group-toggle{
+  position:relative;
+  max-width:900px;
+  margin:0 auto;
+  padding:0 24px;
+}
+/* Заливка через ::before + mask, чтобы участвовать в transition темы */
+.group-toggle::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background:var(--bg);
+  -webkit-mask-image:linear-gradient(to bottom, #000 0%, transparent 100%);
+  mask-image:linear-gradient(to bottom, #000 0%, transparent 100%);
+  pointer-events:none;
+}
+.group-toggle-track{
+  position:relative;
+  z-index:1;
+  display:flex;
+  border-bottom:1px solid var(--line);
+}
+.group-toggle button{
+  flex:1 1 50%;
+  font-family:var(--sans);
+  font-size:16px;
+  font-weight:400;
+  text-align:center;
+  padding:12px;
+  border:none;
+  background:transparent;
+  color:var(--ink-soft);
+  cursor:pointer;
+  transition:color .2s ease;
+}
+.group-toggle button:hover{color:var(--ink);}
+.group-toggle button.active{
+  color:var(--ink);
+  font-weight:600;
+}
+.group-toggle-thumb{
+  position:absolute;
+  left:0; bottom:-1px;
+  width:50%;
+  height:2px;
+  background:var(--ink);
+  transition:transform .2s cubic-bezier(.65,0,.35,1), background-color var(--theme-transition);
+}
+.group-toggle-track[data-active="mine"] .group-toggle-thumb{transform:translateX(100%);}
+
+nav.toc{
+  max-width:900px;
+  margin:auto;
+  padding:12px 24px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+/* Плавная смена вкладки Боссы/Шахты, управляется из JS */
+nav.toc, main{
+  transition:opacity .2s ease, transform .2s ease;
+}
+nav.toc a{
+  text-decoration:none;
+  font-family:var(--mono); word-spacing:var(--mono-word-spacing);
+  font-size:12px;
+  color:var(--ink);
+  background:var(--card-bg);
+  border:1px solid var(--panel-line);
+  padding:6px 12px;
+  border-radius:var(--radius);
+}
+nav.toc a:hover{border-color:var(--ink);color:var(--ink);}
+
+main{
+  max-width:900px;
+  margin:0 auto;
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  gap:24px;
+}
+
+section.cmd{
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  overflow:hidden;
+  scroll-margin-top:calc(var(--sticky-h) + 12px);
+}
+.cmd-head{
+  padding:12px 16px;
+  border-bottom:1px solid var(--line);
+}
+.cmd-head h2{
+  margin:0;
+  font-family:var(--mono); word-spacing:var(--mono-word-spacing);
+  font-size:16px;
+  font-weight:400;
+  color:var(--ink);
+}
+.cmd-head h2.plain{
+  font-family:var(--sans);
+  font-weight:600;
+  font-size:16px;
+  letter-spacing:0;
+  word-spacing:normal;
+}
+.cmd-head .head-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.cmd-head .head-row h2{
+  flex:1 1 auto;
+  min-width:0;
+}
+.cmd-head .cmd-short{
+  font-family:var(--sans);
+  font-size:12px;
+  letter-spacing:.06em;
+  align-self: start;
+  color:var(--ink-faint);
+}
+.cmd-head .cmd-short .hl{color:var(--ink-soft);}
+.cmd-head .sub{
+  font-family:var(--sans);
+  font-size:14px;
+  color:var(--ink-soft);
+}
+
+.console + .console{border-top:1px dashed var(--panel-line);}
+.console{
+  background:var(--panel);
+  padding:12px 16px;
+  font-family:var(--mono); word-spacing:var(--mono-word-spacing);
+  font-size:14px;
+  line-height:2.1;
+}
+.console{overflow-x:auto;}
+.console{color:var(--ink);}
+.console .line{display:block;white-space:pre;color:var(--ink);}
+.console .who{color:var(--ink);}
+.console .bot{color:var(--ink);}
+.console .arrow{color:var(--ink);}
+.console .sep{color:var(--ink);}
+
+.explain{
+  padding:12px 16px;
+  font-size:14px;
+  color:var(--ink-soft);
+}
+.explain p{margin:0 0 8px;color:var(--ink-soft);}
+.explain p:last-child{margin-bottom:0;}
+.explain ul{margin:0; padding-left:12px;display:flex;flex-direction:column;gap:10px;}
+.explain li{color:var(--ink-soft);}
+.explain b{color:var(--ink);font-weight:600;}
+.explain code{
+  font-family:var(--mono); word-spacing:var(--mono-word-spacing);
+  background:var(--panel);
+  border:1px solid var(--panel-line);
+  border-radius:4px;
+  padding:1px 4px;
+  font-size:14px;
+  color:var(--ink-soft);
+}
+
+.legend-table{
+  padding:6px 0;
+}
+.legend-table .row{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  padding:6px 16px;
+  font-size:14px;
+  border-top:1px solid var(--panel-line);
+}
+.legend-table .row:first-of-type{border-top:none;}
+.legend-table .code{
+  font-family:var(--mono); word-spacing:var(--mono-word-spacing);
+  min-width:100px;
+  color:var(--ink-soft);
+}
+.legend-table .name{
+  font-family:var(--mono); word-spacing:var(--mono-word-spacing);
+  color:var(--ink);
+}
+.legend-table .alt{color:var(--ink-faint);font-size:14px;}
+</style>
+
+<script>
+/* Тема выставляется до отрисовки CSS, чтобы не мигало. По умолчанию тёмная. */
+(function(){
+  try{
+    if(localStorage.getItem('theme') !== 'light'){
+      document.documentElement.dataset.theme = 'dark';
+    }
+  }catch(e){
+    document.documentElement.dataset.theme = 'dark';
+  }
+  var meta = document.getElementById('themeColorMeta');
+  if(meta){
+    var bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    if(bg) meta.setAttribute('content', bg);
+  }
+})();
+</script>
+
+<script>
+/* Аварийный показ страницы, если основной скрипт в конце body почему-то не сработает. */
+(function(){
+  window.__revealPage = function(){
+    document.documentElement.classList.add('fonts-loaded');
+  };
+  window.setTimeout(window.__revealPage, 3000);
+})();
+</script>
+
+</head>
+<body>
+<div class="sticky-bar" id="stickyBar">
+  <div class="glass-blur" aria-hidden="true">
+	<i style="--gb-blur:6px; --gb-0:0%; --gb-1:0%; --gb-2:100%; --gb-3:100%;"></i>
+  </div>
+  <div class="sticky-bar-inner">
+    <div class="caption-row">
+      <span class="caption">Команды чекера</span>
+    </div>
+    <button class="theme-toggle" id="themeToggle" title="Смена темы" type="button">🌝</button>
+  </div>
+
+  <div class="group-toggle" id="groupToggle">
+    <div class="group-toggle-track" data-active="boss">
+      <button type="button" data-group="boss">Боссы</button>
+      <button type="button" data-group="mine">Шахты</button>
+      <span class="group-toggle-thumb" aria-hidden="true"></span>
+    </div>
+  </div>
+
+  <nav class="toc" id="toc"></nav>
+</div>
+
+<main id="commands"></main>
+
+<script>
+/* 1. ДАННЫЕ О БОССАХ. colorCode – код цвета Minecraft ("&X" или "&xRRGGBB"). */
+const BOSSES = [
+  {letter:'z',  colorCode:'&7', nameRaw:'Зомби',       genRaw:'Зомби'},
+  {letter:'r',  colorCode:'&c', nameRaw:'Рыло',        genRaw:'Рыла'},
+  {letter:'h',  colorCode:'&7', nameRaw:'Холуй',       genRaw:'Холуя'},
+  {letter:'m',  colorCode:'&2', nameRaw:'Матка',       genRaw:'Матки'},
+  {letter:'s',  colorCode:'&a', nameRaw:'Сточка',      genRaw:'Сточки'},
+  {letter:'b',  colorCode:'&8', nameRaw:'Багз',        genRaw:'Багза'},
+  {letter:'l',  colorCode:'&6', nameRaw:'Левик',       genRaw:'Левика'},
+  {letter:'k',  colorCode:'&c', nameRaw:'К&6о&eр&aо&bв&9к&dа', genRaw:'К&6о&eр&aо&bв&9к&dи'},
+  {letter:'hr', alt:'x', colorCode:'&b', nameRaw:'Хран', genRaw:'Храна'},
+  {letter:'ki', alt:'c', colorCode:'&2', nameRaw:'Кислотный', genRaw:'Кислотного'},
+  {letter:'v',  colorCode:'&7', nameRaw:'Всадники',    genRaw:'Всадников'},
+  {letter:'j',  alt:'e', colorCode:'&d', nameRaw:'Житель', genRaw:'Жителя'},
+  {letter:'li', colorCode:'&xFE7F50', nameRaw:'Л&xBD749Fи&x7B68EDч', genRaw:'Л&xD27784и&xA770B9ч&x7B68EDа'},
+  {letter:'i',  colorCode:'&a', nameRaw:'Игор',        genRaw:'Игора'},
+  {letter:'p',  colorCode:'&x2A0A5F', nameRaw:'Пожиратель', genRaw:'Пожирателя'},
+  {letter:'y',  colorCode:'&b', nameRaw:'Йети',        genRaw:'Йети'},
+  {letter:'g',  colorCode:'&3', nameRaw:'Гаст',        genRaw:'Гаста'},
+  {letter:'f',  colorCode:'&c', nameRaw:'Фенрир',      genRaw:'Фенрира'},
+  {letter:'go', colorCode:'&xA25F2A', nameRaw:'Голем', genRaw:'Голема'},
+  {letter:'re', colorCode:'&c', nameRaw:'Решеф',       genRaw:'Решефа'},
+  {letter:'ch', alt:'4', colorCode:'&4', nameRaw:'Чертёнок', genRaw:'Чертёнка'},
+];
+
+const BOSS_BY_LETTER = {};
+BOSSES.forEach(b=>{
+  BOSS_BY_LETTER[b.letter] = b;
+  if(b.alt) BOSS_BY_LETTER[b.alt] = b; // альтернативная буква ссылается на того же босса
+});
+
+const MINES = [
+  {code:'1',  nameRaw:'&7Земляная шахта',              genRaw:'&7Земляной шахты'},
+  {code:'1w', nameRaw:'&2Шерстяная шахта',             genRaw:'&2Шерстяной шахты'},
+  {code:'3',  nameRaw:'&7Каменная шахта',               genRaw:'&7Каменной шахты'},
+  {code:'5',  nameRaw:'&7Земляная шахта',               genRaw:'&7Земляной шахты'},
+  {code:'5k', nameRaw:'&7Карьер',                      genRaw:'&7Карьера'},
+  {code:'5b', nameRaw:'&7Шахта на базе',                genRaw:'&7Шахты на базе'},
+  {code:'6',  nameRaw:'&7Земляная шахта в тюремном подвале', genRaw:'&7Земляной шахты в тюремном подвале'},
+  {code:'6d', nameRaw:'&7Драгоценная шахта',            genRaw:'&7Драгоценной шахты'},
+  {code:'7',  nameRaw:'&cАдская шахта',                 genRaw:'&cАдской шахты'},
+  {code:'8',  nameRaw:'&cПотухший вулкан',               genRaw:'&cПотухшего вулкана'},
+  {code:'10', nameRaw:'&aСумеречный лес',               genRaw:'&aСумеречного леса'},
+  {code:'12', nameRaw:'&dБездна',                       genRaw:'&dБездны'},
+  {code:'13', nameRaw:'&bОзеро Чакмантинкуль',          genRaw:'&bОзера Чакмантинкуль'},
+  {code:'14', nameRaw:'&fПаучье логово',                genRaw:'&fПаучьего логова'},
+  {code:'15', nameRaw:'&aИзумрудная шахта',             genRaw:'&aИзумрудной шахты'},
+  {code:'17', nameRaw:'&cГр&6иб&eое&aдо&bво &9ущ&dел&cье', genRaw:'&cГр&6иб&eое&aдо&bва &9ущ&dел&cья'},
+  {code:'18', nameRaw:'&7Канализация',                  genRaw:'&7Канализации'},
+  {code:'19', nameRaw:'&7Прерии',                       genRaw:'&7Прерий'},
+  {code:'21', nameRaw:'&5Аметистовый прииск',           genRaw:'&5Аметистового прииска'},
+  {code:'23', nameRaw:'&bЛогово Йети',                  genRaw:'&bЛогова Йети'},
+  {code:'25', nameRaw:'&cСтройка',                      genRaw:'&cСтройки'},
+  {code:'26', nameRaw:'&8Скалковая шахта',              genRaw:'&8Скалковой шахты'},
+  {code:'28', nameRaw:'&3Затонувший город',             genRaw:'&3Затонувшего города'},
+  {code:'30', nameRaw:'&eОбсидиановая шахта',           genRaw:'&eОбсидиановой шахты'},
+  {code:'32', nameRaw:'&bНебесный остров',              genRaw:'&bНебесного острова'},
+  {code:'34', nameRaw:'&7Тюремная котельная',           genRaw:'&7Тюремной котельной'},
+  {code:'36', nameRaw:'&7Кладбище',                     genRaw:'&7Кладбища'},
+  {code:'38', nameRaw:'&7Заброшенный храм',             genRaw:'&7Заброшенного храма'},
+  {code:'40', nameRaw:'&7Проклятая крепость',           genRaw:'&7Проклятой крепости'},
+];
+const MINE_BY_CODE = Object.fromEntries(MINES.map(m=>[m.code,m]));
+
+// номер шахты в скобках добавляется тут же, отдельно в nameRaw/genRaw не хранится
+function mineNameHTML(m, genitive){
+  return mcColored(`${genitive ? m.genRaw : m.nameRaw} &7(${m.code})`);
+}
+
+/* 2. ПАРСЕР ЦВЕТОВ MINECRAFT (&7, &c, &xRRGGBB ...) */
+const MC_LEGACY = {0:'--mc-0',1:'--mc-1',2:'--mc-2',3:'--mc-3',4:'--mc-4',5:'--mc-5',
+  6:'--mc-6',7:'--mc-7',8:'--mc-8',9:'--mc-9',a:'--mc-a',b:'--mc-b',c:'--mc-c',
+  d:'--mc-d',e:'--mc-e',f:'--mc-f'};
+
+/* нестандартные &x-цвета, для которых заведены отдельные переменные */
+const CUSTOM_HEX_VARS = {
+  'FE7F50':'--boss-lich-1', 'BD749F':'--boss-lich-2', '7B68ED':'--boss-lich-3',
+  'D27784':'--boss-lich-gen-2', 'A770B9':'--boss-lich-gen-3',
+  'A25F2A':'--boss-golem', '2A0A5F':'--boss-pozhiratel',
+};
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function mcColored(raw){
+  let i=0, cur=null, out=[];
+  while(i<raw.length){
+    if(raw[i]==='&'){
+      const hex6 = raw.substr(i+2,6).toUpperCase();
+      if(raw[i+1]==='x' && /^[0-9A-F]{6}$/.test(hex6)){
+        cur = CUSTOM_HEX_VARS[hex6] ? `var(${CUSTOM_HEX_VARS[hex6]})` : '#'+hex6;
+        i+=8; continue;
+      }
+      const d = (raw[i+1]||'').toLowerCase();
+      if(MC_LEGACY[d]){ cur = `var(${MC_LEGACY[d]})`; i+=2; continue; }
+    }
+    if(out.length && out[out.length-1].color===cur){ out[out.length-1].text += raw[i]; }
+    else{ out.push({text:raw[i], color:cur}); }
+    i++;
+  }
+  return out.map(seg=>`<span style="color:${seg.color||'inherit'}">${esc(seg.text)}</span>`).join('');
+}
+
+function bossNameHTML(b, genitive){
+  return mcColored(b.colorCode + (genitive ? b.genRaw : b.nameRaw));
+}
+function stripColors(raw){
+  return raw.replace(/&x[0-9A-Fa-f]{6}|&./g,'');
+}
+function bossPlainName(b, genitive){
+  return stripColors(genitive ? b.genRaw : b.nameRaw);
+}
+
+/* 3. ВРЕМЯ ДО СПАВНА: &a – таймер установлен, &f – таймера нет, &7 – процент [NN%] */
+function bossToken(letter, text){
+  const b = BOSS_BY_LETTER[letter];
+  return {
+    html: `${bossNameHTML(b)} ${mcColored(text)}`,
+    plain: `${bossPlainName(b)} ${stripColors(text)}`,
+  };
+}
+
+// "снимок" времени для примеров: порядок = вывод в !ab, soon – попадает ли босс в !sb
+const BOSS_STATE = {
+  z:  {text:'&fуже',              soon:false},
+  r:  {text:'&a1м',               soon:true},
+  s:  {text:'&f<3м &7[90%]',      soon:false},
+  b:  {text:'&f<8м &7[83%]',      soon:true},
+  ch: {text:'&a10м',              soon:true},
+  hr: {text:'&a15м',              soon:true},
+  p:  {text:'&f<23м &7[73%]',     soon:true},
+  ki: {text:'&a30м',              soon:true},
+  h:  {text:'&f20м-44м',          soon:true},
+  
+  l:  {text:'&a1ч3м',             soon:false},
+  m:  {text:'&f27м-1ч9м',         soon:false},
+  v:  {text:'&f18м-1ч18м',        soon:false},
+  i:  {text:'&a1ч30м',            soon:false},
+  y:  {text:'&a2ч30м',            soon:false},
+  k:  {text:'&f1ч52м-3ч4м',       soon:false},
+  go: {text:'&a3ч53м',            soon:false},
+  j:  {text:'&f2ч35м-3ч59м',      soon:false},
+  g:  {text:'&f3ч6м-5ч6м',        soon:false},
+  re: {text:'&a5ч33м',            soon:false},
+  li: {text:'&f3ч50м-5ч40м',      soon:false},
+  f:  {text:'&f5ч15м-7ч39м',      soon:false},
+};
+const BOSS_ORDER = Object.keys(BOSS_STATE);
+
+function isSoon(letter){
+  return BOSS_STATE[BOSS_BY_LETTER[letter].letter].soon;
+}
+function bossesInOrder(list){
+  return list.slice().sort((a,b)=>
+    BOSS_ORDER.indexOf(BOSS_BY_LETTER[a].letter) - BOSS_ORDER.indexOf(BOSS_BY_LETTER[b].letter));
+}
+function bossTokenAuto(letter){
+  return bossToken(letter, BOSS_STATE[BOSS_BY_LETTER[letter].letter].text);
+}
+
+/* 4. ПЕРЕНОС СТРОК (как в самом чекере) */
+function wrapTokens(tokens, opts={}){
+  const sepChars = opts.sepChars ?? 3;                 // сколько символов "весит" разделитель
+  const sepHTML  = opts.sepHTML  ?? '<span class="sep"> | </span>';
+  const max      = opts.max ?? 70;
+  const prefix   = opts.prefix ?? '';                  // например "Таймеры: " – только на первой строке
+
+  const lines=[]; let cur=[]; let len = prefix.length;
+  tokens.forEach(t=>{
+    const add = t.plain.length + (cur.length?sepChars:0);
+    if(cur.length && len+add>max){ lines.push(cur); cur=[]; len=0; }
+    cur.push(t); len += t.plain.length + (cur.length>1?sepChars:0);
+  });
+  if(cur.length) lines.push(cur);
+  return lines.map((row,i)=> (i===0?prefix:'') + row.map(t=>t.html).join(sepHTML));
+}
+
+/* 5. СТАТУСНЫЕ МЕТКИ (!tb / !nb / !nm) – цвет означает состояние, а не принадлежность боссу/шахте */
+const STATUS_COLOR = {on:'var(--mc-a)', off:'var(--mc-c)', warn:'var(--mc-e)'};
+function statusToken(code, status){
+  return {html:`<span style="color:${STATUS_COLOR[status]}">${esc(code)}</span>`, plain:code};
+}
+
+/* 6. РЕНДЕР */
+const SDEKILL_COLORS = ['var(--sdekill-1)','var(--sdekill-2)','var(--sdekill-3)','var(--sdekill-4)','var(--sdekill-5)','var(--sdekill-6)','var(--sdekill-7)'];
+function sdekillHTML(){
+  return 'Sdekill'.split('').map((ch,i)=>`<span style="color:${SDEKILL_COLORS[i]}">${ch}</span>`).join('');
+}
+function cmdLine(cmd){
+  return `<span class="line"><span class="who">${sdekillHTML()}</span> <span class="arrow">&gt;</span> ${esc(cmd)}</span>`;
+}
+function botLines(htmlLines){
+  return htmlLines.map(h=>`<span class="line"><span class="bot">P34CH</span> <span class="arrow">&gt;</span> ${h}</span>`).join('');
+}
+
+function renderExample(ex){
+  return `<div class="console">${cmdLine(ex.cmd)}${botLines(ex.responseLines)}</div>`;
+}
+
+/* 7. КОНТЕНТ КОМАНД */
+const COMMANDS = [
+
+{id:'t-boss', group:'boss', cmd:'!t &lt;босс&gt; &lt;время&gt;', title:'установка таймера до спавна босса', short:'<span class="hl">t</span>imer', examples:[
+  {cmd:'!t f 1h',    responseLines:[bossToken('f','&a1ч0м0с').html]},
+  {cmd:'!t f 1 0 0', responseLines:[bossToken('f','&a1ч0м0с').html]},
+  {cmd:'!t f 3600',  responseLines:[bossToken('f','&a1ч0м0с').html]},
+], explainHTML:`
+  <ul>
+    <li>после <code>t</code> нужно указать обозначение босса, затем время до спавна</li>
+    <li>время можно писать в разных форматах – все три команды в примере дают одинаковый результат</li>
+    <li>для часов, минут, секунд используются обозначения <code>h</code>, <code>m</code>, <code>s</code></li>
+    <li>эту команду можно использовать без <code>t</code> в начале, например: <code>!f 5 0</code></li>
+  </ul>
+`},
+
+{id:'ab', group:'boss', cmd:'!ab', title:'время до спавна всех боссов', short:'<span class="hl">a</span>ll <span class="hl">b</span>osses', examples:[{
+  cmd:'!ab',
+  responseLines: wrapTokens(bossesInOrder(BOSSES.map(b=>b.letter)).map(l=>bossTokenAuto(l))),
+}], explainHTML:`
+  <ul>
+    <li>боссы идут по возрастанию времени до спавна</li>
+    <li><code style="color:var(--ink)">уже</code> – босс уже появился</li>
+    <li><code style="color:var(--mc-a)">1м</code> – таймер до спавна установлен, босс появится через 1 минуту</li>
+    <li><code style="color:var(--ink)">&lt;3м <span style="color:var(--mc-7)">[90%]</span></code> – таймер не установлен, босс появится в случайную секунду на протяжении следующих 3 минут</li>
+    <li><code style="color:var(--ink)">20м-44м</code> – таймер не установлен, босс может появиться минимум через 20 минут</li>
+  </ul>
+`},
+
+{id:'sb', group:'boss', cmd:'!sb', title:'боссы в ближайший час', short:'<span class="hl">s</span>oon <span class="hl">b</span>osses', examples:[{
+  cmd:'!sb',
+  responseLines: wrapTokens(bossesInOrder(BOSSES.map(b=>b.letter).filter(isSoon)).map(l=>bossTokenAuto(l))),
+}], explainHTML:`
+  <ul>
+    <li>та же команда, что и <code>!ab</code>, но боссы только в ближайший час</li>
+    <li>не пишет боссов, уведомления которых выключены</li>
+  </ul>
+`},
+
+{id:'tb', group:'boss', cmd:'!tb', title:'статусы таймеров боссов', short:'<span class="hl">t</span>imer <span class="hl">b</span>osses', examples:[{
+  cmd:'!tb',
+  responseLines: wrapTokens(
+    BOSSES.map(b=>statusToken(b.letter, ['r','ch','hr','ki','l','i','y','go','re'].includes(b.letter)?'on':'off')),
+    {sepChars:1, sepHTML:' ', prefix:'Таймеры: '}
+  ),
+}], explainHTML:`
+  <ul>
+    <li><code style="color:var(--mc-a)">зелёный</code> – таймер установлен</li>
+    <li><code style="color:var(--mc-c)">красный</code> – таймер не установлен</li>
+  </ul>
+`},
+
+{id:'nb', group:'boss', cmd:'!nb', title:'статусы уведомлений боссов', short:'<span class="hl">n</span>otify <span class="hl">b</span>osses', examples:[{
+  cmd:'!nb',
+  responseLines: wrapTokens(
+    BOSSES.map(b=>statusToken(b.letter, b.letter==='r' ? 'warn' : (['z','s'].includes(b.letter)?'off':'on'))),
+    {sepChars:1, sepHTML:' ', prefix:'Уведы: '}
+  ),
+}], explainHTML:`
+  <ul>
+    <li><code style="color:var(--mc-a)">зелёный</code> – уведомления включены</li>
+    <li><code style="color:var(--mc-c)">красный</code> – уведомления выключены</li>
+    <li><code style="color:var(--mc-e)">жёлтый</code> – уведомления выключены, но установлен таймер, поэтому бот уведомит о спавне</li>
+  </ul>
+`},
+
+{id:'t-mine', group:'mine', cmd:'!t &lt;шахта&gt; &lt;время&gt;', title:'установка таймера до реса шахты', short:'<span class="hl">t</span>imer', examples:[
+  {cmd:'!t 1 -14',       responseLines:[`Рес ${mineNameHTML(MINE_BY_CODE['1'], true)} был в <span style="color:var(--mc-7)">20:32:11</span>, будет в <span style="color:var(--mc-a)">20:33:41</span>`]},
+  {cmd:'!t 1 20 32 11',  responseLines:[`Рес ${mineNameHTML(MINE_BY_CODE['1'], true)} был в <span style="color:var(--mc-7)">20:32:11</span>, будет в <span style="color:var(--mc-a)">20:33:41</span>`]},
+], explainHTML:`
+  <ul>
+    <li>после <code>t</code> нужно указать номер шахты, затем время, когда был рес</li>
+    <li>время можно писать в тех же форматах, что и для таймера боссов</li>
+    <li><code>-14</code> – рес шахты был 14 секунд назад</li>
+    <li><code>20 32 11</code> – рес шахты был в 20:32:11</li>
+  </ul>
+`},
+
+{id:'rf', group:'mine', cmd:'!rf &lt;шахта&gt; &lt;длит.&gt;', title:'запись длительности реса шахты', short:'<span class="hl">r</span>e<span class="hl">f</span>ill', examples:[
+  {cmd:'!rf 1 90',    responseLines:[`В длительность реса ${mineNameHTML(MINE_BY_CODE['1'], true)} записано <span style="color:var(--mc-a)">1м30с</span>`]},
+  {cmd:'!rf 1 1 30',  responseLines:[`В длительность реса ${mineNameHTML(MINE_BY_CODE['1'], true)} записано <span style="color:var(--mc-a)">1м30с</span>`]},
+], explainHTML:`
+  <ul>
+    <li>после <code>rf</code> нужно указать номер шахты, затем длительность реса</li>
+    <li>длительность можно писать в тех же форматах, что и время для таймера боссов</li>
+	<li>бОльшая часть длительностей реса уже записана, но иногда в игре их меняют</li>
+  </ul>
+`},
+
+{id:'nm', group:'mine', cmd:'!nm', title:'статусы уведомлений шахт', short:'<span class="hl">n</span>otify <span class="hl">m</span>ines', examples:[{
+  cmd:'!nm',
+  responseLines: (()=>{
+    const tokens = MINES.map(m=>statusToken(m.code, ['17','19','23','28'].includes(m.code) ? 'on' : 'off'));
+    const splitAt = Math.floor(MINES.length/2)+1;
+    const line1 = tokens.slice(0, splitAt);
+    const line2 = tokens.slice(splitAt);
+    return [
+      'Уведы: ' + line1.map(t=>t.html).join(' '),
+      'Уведы: ' + line2.map(t=>t.html).join(' '),
+    ];
+  })(),
+}], explainHTML:`
+  <ul>
+    <li>уведомления включаются автоматически, если установить таймер реса шахты</li>
+    <li><code style="color:var(--mc-a)">зелёный</code> – уведомления включены</li>
+    <li><code style="color:var(--mc-c)">красный</code> – уведомления выключены</li>
+  </ul>
+`},
+
+{id:'onoff-boss', group:'boss', cmd:'!on / !off &lt;боссы&gt;', title:'включение и выключение уведомлений', examples:[
+  {cmd:'!on rh', responseLines:[
+    `Уведы ${bossNameHTML(BOSS_BY_LETTER.r, true)} <span style="color:var(--mc-a)">вкл</span>`,
+    `Уведы ${bossNameHTML(BOSS_BY_LETTER.h, true)} <span style="color:var(--mc-e)">уже вкл</span>`,
+  ]},
+  {cmd:'!off zh', responseLines:[
+    `Уведы ${bossNameHTML(BOSS_BY_LETTER.z, true)} <span style="color:var(--mc-e)">уже выкл</span>`,
+    `Уведы ${bossNameHTML(BOSS_BY_LETTER.h, true)} <span style="color:var(--mc-c)">выкл</span>`,
+  ]},
+], explainHTML:`
+  <ul>
+    <li>по умолчанию у всех боссов уведомления включены</li>
+    <li>после <code>on</code>/<code>off</code> перечисляются обозначения боссов</li>
+    <li>если уведомления выключены, то босса не показывает в <code>!sb</code></li>
+  </ul>
+`},
+
+{id:'onoff-mine', group:'mine', cmd:'!on / !off &lt;шахты&gt;', title:'включение и выключение уведомлений', examples:[
+  {cmd:'!on 32 17', responseLines:[
+    `Уведы ${mineNameHTML(MINE_BY_CODE['32'], true)} <span style="color:var(--mc-a)">вкл</span>`,
+    `Уведы ${mineNameHTML(MINE_BY_CODE['17'], true)} <span style="color:var(--mc-e)">уже вкл</span>`,
+  ]},
+  {cmd:'!off 21 17', responseLines:[
+    `Уведы ${mineNameHTML(MINE_BY_CODE['21'], true)} <span style="color:var(--mc-e)">уже выкл</span>`,
+    `Уведы ${mineNameHTML(MINE_BY_CODE['17'], true)} <span style="color:var(--mc-c)">выкл</span>`,
+  ]},
+], explainHTML:`
+  <ul>
+    <li>по умолчанию у всех шахт уведомления выключены</li>
+    <li>после <code>on</code>/<code>off</code> перечисляются номера шахт, каждый своей строкой в ответе</li>
+    <li>если уведомления выключены, то бот уведомляет за 15 секунд до реса шахты</li>
+  </ul>
+`},
+
+{id:'query-boss', group:'boss', cmd:'!&lt;боссы&gt;', title:'время до спавна конкретных боссов', examples:[
+  {cmd:'!bxj', responseLines:[
+    bossTokenAuto('b').html,
+    bossTokenAuto('x').html,
+    bossTokenAuto('j').html,
+  ]},
+], explainHTML:`
+  <ul>
+    <li>после <code>!</code> нужно перечислить обозначения боссов</li>
+    <li>обозначения боссов можно писать без пробелов</li>
+  </ul>
+`},
+
+{id:'query-mine', group:'mine', cmd:'!&lt;шахты&gt;', title:'время до реса конкретных шахт', examples:[
+  {cmd:'!23 17', responseLines:[
+    `${mineNameHTML(MINE_BY_CODE['23'], false)} <span style="color:var(--mc-a)">2м31с</span> <span style="color:var(--mc-7)">(</span><span style="color:var(--mc-a)">20:34:56</span><span style="color:var(--mc-7)">)</span>`,
+    `${mineNameHTML(MINE_BY_CODE['17'], false)} <span style="color:var(--mc-a)">7м30с</span> <span style="color:var(--mc-7)">(</span><span style="color:var(--mc-a)">20:39:55</span><span style="color:var(--mc-7)">)</span>`,
+  ]},
+], explainHTML:`
+  <ul>
+    <li>после <code>!</code> нужно перечислить номера шахт через пробел</li>
+  </ul>
+`},
+
+{id:'auto-boss', group:'boss', cmd:'Уведомления', title:'', autoExamples:[
+  {
+   lines:[
+     `<span class="line">${mcColored('&7'+bossPlainName(BOSS_BY_LETTER.h)+' &6был повержен за &79 секунд&6! Нападавшие получили ценные сокровища!')}</span>`,
+     `<span class="line"><span class="bot">P34CH</span> <span class="arrow">&gt;</span> ${mcColored('&fТаймер для &7'+bossPlainName(BOSS_BY_LETTER.h,true)+' &f- &a!t h <время>')}</span>`,
+   ]},
+  {
+   lines:[
+     `<span class="line"><span class="bot">P34CH</span> <span class="arrow">&gt;</span> ${bossTokenAuto('r').html}</span>`,
+     `<span class="line"><span class="bot">P34CH</span> <span class="arrow">&gt;</span> ${bossTokenAuto('s').html}</span>`,
+   ]},
+], explainHTML:`
+  <ul>
+    <li>после смерти босса – подсказывает команду, чтобы поставить таймер</li>
+    <li>уведомляет перед спавном босса – если таймер установлен, то за 1 минуту, если не установлен – когда до спавна осталось 10% времени</li>
+  </ul> 
+`},
+
+{id:'auto-mine', group:'mine', cmd:'Уведомления', title:'', autoExamples:[
+  {
+   lines:[
+     `<span class="line">P34CH &gt; ${mineNameHTML(MINE_BY_CODE['1'], false)} <span style="color:var(--mc-a)">15с</span> <span style="color:var(--mc-7)">(</span><span style="color:var(--mc-a)">20:33:41</span><span style="color:var(--mc-7)">)</span>`,
+   ]},
+], explainHTML:`
+  <ul>
+    <li>уведомляет за 15 секунд до реса шахты</li>
+  </ul>
+`},
+
+{id:'legend-boss', group:'boss', cmd:'Обозначения', title:'', legendGroup:'boss'},
+{id:'legend-mine', group:'mine', cmd:'Обозначения', title:'', legendGroup:'mine'},
+
+];
+
+/* 8. РЕНДЕР СТРАНИЦЫ */
+const tocEl = document.getElementById('toc');
+const mainEl = document.getElementById('commands');
+const stickyBar = document.getElementById('stickyBar');
+
+// высота шапки меняется (перенос кнопок, смена вкладки), поэтому меряем её реально
+function updateStickyHeight(){
+  document.documentElement.style.setProperty('--sticky-h', stickyBar.offsetHeight + 'px');
+}
+
+COMMANDS.forEach(c=>{
+  const a = document.createElement('a');
+  a.href = `#${c.id}`;
+  a.innerHTML = c.cmd || c.title;
+  a.dataset.group = c.group;
+  tocEl.appendChild(a);
+
+  const section = document.createElement('section');
+  section.className = 'cmd';
+  section.id = c.id;
+  section.dataset.group = c.group;
+
+  // "Обозначения" – таблица кодов боссов/шахт
+  if(c.legendGroup){
+    section.innerHTML = `
+      <div class="cmd-head"><h2>${c.cmd}</h2></div>
+      <div class="legend-table"></div>
+    `;
+    mainEl.appendChild(section);
+
+    const rowsHost = section.querySelector('.legend-table');
+    const items = c.legendGroup === 'boss' ? BOSSES : MINES;
+    items.forEach(item=>{
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = c.legendGroup === 'boss'
+        ? `<span class="code">${item.letter}${item.alt?` <span class="alt">(${item.alt})</span>`:''}</span><span class="name">${bossNameHTML(item)}</span>`
+        : `<span class="code">${item.code}</span><span class="name">${mcColored(item.nameRaw)}</span>`;
+      rowsHost.appendChild(row);
+    });
+    return;
+  }
+
+  const examplesHTML = (c.examples||[]).map(ex=>renderExample(ex)).join('');
+  const autoHTML = (c.autoExamples||[]).map(ex=>`
+    <div class="console">${ex.lines.join('')}</div>
+  `).join('');
+
+  section.innerHTML = `
+    <div class="cmd-head">
+      <div class="head-row">
+        <h2${c.cmd?'':' class="plain"'}>${c.cmd || c.title}</h2>
+        ${c.short ? `<div class="cmd-short">${c.short}</div>` : ''}
+      </div>
+      ${c.cmd ? `<div class="sub">${c.title}</div>` : ''}
+    </div>
+    ${examplesHTML}
+    ${autoHTML}
+    <div class="explain">${c.explainHTML}</div>
+  `;
+  mainEl.appendChild(section);
+});
+
+/* 9. ПЕРЕКЛЮЧАТЕЛЬ ГРУППЫ – показывает/скрывает секции по data-group */
+const groupToggle = document.getElementById('groupToggle');
+const groupButtons = groupToggle.querySelectorAll('button');
+const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let currentGroup = null;
+let groupAnimating = false;
+
+const groupToggleTrack = groupToggle.querySelector('.group-toggle-track');
+
+function applyGroupVisibility(group){
+  groupButtons.forEach(btn=>btn.classList.toggle('active', btn.dataset.group===group));
+  if(groupToggleTrack) groupToggleTrack.dataset.active = group;
+  document.querySelectorAll('#toc a, section.cmd').forEach(el=>{
+    el.style.display = el.dataset.group===group ? '' : 'none';
+  });
+  currentGroup = group;
+  updateStickyHeight(); // высота шапки меняется вместе с набором кнопок в nav.toc
+}
+
+// после смены вкладки скроллит к её первому разделу и обновляет хэш в адресной строке
+function scrollToGroupTop(group){
+  const firstSection = mainEl.querySelector(`section.cmd[data-group="${group}"]`);
+  if(!firstSection) return;
+  firstSection.scrollIntoView({behavior: prefersReducedMotion ? 'auto' : 'smooth', block:'start'});
+  if(firstSection.id) history.replaceState(null, '', '#' + firstSection.id);
+}
+
+function setGroup(group, opts={}){
+  const {animate=false, scrollTop=false} = opts;
+  try{ localStorage.setItem('group', group); }catch(e){}
+
+  if(!animate || prefersReducedMotion || groupAnimating || group===currentGroup){
+    applyGroupVisibility(group);
+    if(scrollTop) scrollToGroupTop(group);
+    return;
+  }
+
+  groupAnimating = true;
+  const dir = group === 'mine' ? 1 : -1; // шахты выезжают справа, боссы – слева
+  [mainEl, tocEl].forEach(el=>{
+    el.style.opacity = '0';
+    el.style.transform = `translateX(${-dir*14}px)`;
+  });
+
+  window.setTimeout(()=>{
+    applyGroupVisibility(group);
+    if(scrollTop) scrollToGroupTop(group);
+
+    [mainEl, tocEl].forEach(el=>{
+      el.style.transition = 'none';
+      el.style.transform = `translateX(${dir*14}px)`;
+    });
+    void mainEl.offsetWidth; // форсируем reflow, чтобы сброс transition применился до следующего кадра
+
+    requestAnimationFrame(()=>{
+      [mainEl, tocEl].forEach(el=>{
+        el.style.transition = '';
+        el.style.opacity = '1';
+        el.style.transform = 'translateX(0)';
+      });
+      window.setTimeout(()=>{
+        [mainEl, tocEl].forEach(el=>{
+          el.style.transform = '';
+        });
+        groupAnimating = false;
+      }, 200);
+    });
+  }, 160);
+}
+
+function resolveInitialGroup(){
+  const hashId = window.location.hash.replace('#','');
+  if(hashId){
+    const target = document.getElementById(hashId);
+    if(target && target.dataset.group) return target.dataset.group;
+  }
+  try{
+    const saved = localStorage.getItem('group');
+    if(saved === 'boss' || saved === 'mine') return saved;
+  }catch(e){}
+  return 'boss';
+}
+
+groupButtons.forEach(btn=>btn.addEventListener('click', ()=>{
+  setGroup(btn.dataset.group, {animate:true, scrollTop:true});
+}));
+
+setGroup(resolveInitialGroup());
+
+/* Ждём загрузки шрифтов и только потом считаем высоту шапки и скроллим к хэшу */
+function settleAndReveal(){
+  updateStickyHeight();
+  const hashId = window.location.hash.slice(1);
+  const target = hashId && document.getElementById(hashId);
+  if(target) target.scrollIntoView({block:'start'});
+  window.__revealPage();
+}
+if(document.fonts && document.fonts.ready){
+  Promise.all([
+    document.fonts.load('400 16px Inter'),
+    document.fonts.load('700 16px Inter'),
+    document.fonts.load('400 16px Minecraft'),
+  ]).catch(()=>{}).then(()=>{
+    document.fonts.ready.then(settleAndReveal);
+  });
+} else {
+  settleAndReveal();
+}
+
+window.addEventListener('resize', updateStickyHeight);
+window.addEventListener('load', updateStickyHeight);
+
+/* 10. ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ – выбор сохраняется в localStorage */
+const themeToggle = document.getElementById('themeToggle');
+const themeColorMeta = document.getElementById('themeColorMeta');
+themeToggle.textContent = document.documentElement.dataset.theme === 'dark' ? '🌝' : '🌚';
+themeToggle.addEventListener('click', ()=>{
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  if(isDark){
+    delete document.documentElement.dataset.theme;
+    themeToggle.textContent = '🌚';
+    try{ localStorage.setItem('theme', 'light'); }catch(e){}
+  } else {
+    document.documentElement.dataset.theme = 'dark';
+    themeToggle.textContent = '🌝';
+    try{ localStorage.setItem('theme', 'dark'); }catch(e){}
+  }
+  // цвет берём из фактического значения --bg
+  if(themeColorMeta){
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    if(bg) themeColorMeta.setAttribute('content', bg);
+  }
+});
+</script>
+
+</body>
+</html>
